@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown Editor Pro (Rounded)</title>
+    <title>Markdown Editor Pro (Vim + Fix Layout)</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -21,19 +21,20 @@
             --hover: #2a2d2e;
             --selected-bg: #094771;
             --tag-bg: #3e3e42;
+            --vim-bg: #007acc;
+            --vim-text: #fff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
-        /* 按鈕樣式：圓滑化修改 (border-radius: 20px) */
         button { 
             background-color: var(--bg-light); 
             color: var(--text-main); 
             border: 1px solid var(--border); 
-            padding: 6px 16px; /* 增加一點 padding 讓圓角更好看 */
+            padding: 6px 16px; 
             cursor: pointer; 
-            border-radius: 20px; /* 圓角設定 */
+            border-radius: 20px; 
             transition: 0.2s; 
             font-size: 13px;
         }
@@ -42,8 +43,7 @@
         button.primary:hover { background-color: var(--accent-hover); }
         button.danger { background-color: var(--danger); border-color: var(--danger); color: white; }
         
-        /* 輸入框也稍微圓角化，保持風格一致 */
-        input, textarea { 
+        input, textarea, select { 
             background-color: var(--bg-darker); 
             border: 1px solid var(--border); 
             color: var(--text-main); 
@@ -61,7 +61,7 @@
         .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
 
         .project-card {
-            background-color: var(--bg-light); border: 1px solid var(--border); border-radius: 12px; /* 卡片圓角 */
+            background-color: var(--bg-light); border: 1px solid var(--border); border-radius: 12px; 
             height: 160px; padding: 15px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative;
         }
         .project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
@@ -72,9 +72,8 @@
         .project-snippet { font-size: 0.85em; color: #888; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
         .card-bottom { margin-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
         .card-tags { display: flex; gap: 4px; overflow: hidden; }
-        .mini-tag { font-size: 10px; background: var(--tag-bg); padding: 2px 6px; border-radius: 8px; /* 標籤圓角 */ }
+        .mini-tag { font-size: 10px; background: var(--tag-bg); padding: 2px 6px; border-radius: 8px; }
         
-        /* 選取狀態下的 Checkbox */
         .select-indicator {
             position: absolute; top: 10px; right: 10px; width: 22px; height: 22px;
             background: var(--bg-darker); border: 1px solid var(--border); border-radius: 50%;
@@ -84,31 +83,103 @@
         .project-card.selected .select-indicator { background: var(--accent); border-color: var(--accent); color: white; }
         .project-card.selected .select-indicator::after { content: '✓'; font-size: 12px; }
 
-        /* Editor */
-        #editor-view { display: none; flex-direction: column; height: 100%; }
+        /* Editor Layout */
+        #editor-view { display: none; flex-direction: column; height: 100%; position: relative; }
         .toolbar { height: 50px; background: var(--bg-darker); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
         .toolbar-group { display: flex; gap: 10px; align-items: center; }
         
-        /* 視圖切換按鈕群組 */
         .view-toggles { display: flex; gap: 5px; background: var(--bg-light); padding: 3px; border-radius: 20px; border: 1px solid var(--border); }
         .view-toggles button { border: none; background: transparent; padding: 4px 12px; border-radius: 16px; font-size: 12px; }
         .view-toggles button.active { background: var(--accent); color: white; }
 
-        .main-container { flex: 1; display: flex; overflow: hidden; }
-        .editor-pane { width: 50%; display: flex; border-right: 1px solid var(--border); background: var(--bg-dark); }
+        .main-container { flex: 1; display: flex; overflow: hidden; position: relative; }
+        .editor-pane { width: 50%; display: flex; border-right: 1px solid var(--border); background: var(--bg-dark); position: relative; }
         .line-numbers { width: 40px; background: var(--bg-dark); color: #666; text-align: right; padding: 10px 5px; font-family: monospace; border-right: 1px solid var(--border); overflow: hidden; }
         
-        /* 編輯器輸入框去除圓角以貼合版面 */
-        textarea { flex: 1; background: var(--bg-dark); color: var(--text-main); border: none; resize: none; padding: 10px; font-family: 'Consolas', monospace; outline: none; overflow-y: scroll; border-radius: 0; }
-        .preview-pane { width: 50%; padding: 20px; overflow-y: auto; background: var(--bg-light); }
+        textarea { flex: 1; background: var(--bg-dark); color: var(--text-main); border: none; resize: none; padding: 10px; font-family: 'Consolas', monospace; outline: none; overflow-y: scroll; border-radius: 0; padding-bottom: 50px; }
         
-        /* Markdown Styles */
-        .preview-pane h1, .preview-pane h2 { border-bottom: 1px solid var(--border); padding-bottom: 5px; color: #fff; }
-        .preview-pane pre { background: #1e1e1e; padding: 10px; border-radius: 8px; overflow-x: auto; }
-        .preview-pane code { font-family: monospace; }
+        /* --- Preview Pane Styles (HackMD-like Fixes) --- 
+           這裡針對清單縮排與間距進行了修正
+        */
+        .preview-pane { 
+            width: 50%; 
+            padding: 30px; 
+            overflow-y: auto; 
+            background: var(--bg-light); 
+            font-size: 16px; 
+            line-height: 1.8; /* 增加行距 */
+            color: #e0e0e0;
+        }
         
+        /* 標題樣式 */
+        .preview-pane h1, .preview-pane h2, .preview-pane h3 { 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 0.3em; 
+            margin-top: 1.2em;
+            margin-bottom: 0.8em;
+            color: #fff; 
+            font-weight: 600;
+        }
+
+        /* 關鍵修正：清單縮排與層級 */
+        .preview-pane ul, .preview-pane ol {
+            padding-left: 2em; /* 恢復縮排 */
+            margin-bottom: 1em;
+        }
+        /* 巢狀清單間距調整 */
+        .preview-pane ul ul, .preview-pane ol ul, .preview-pane ul ol, .preview-pane ol ol {
+            margin-top: 0.2em;
+            margin-bottom: 0.2em;
+        }
+        /* 項目間距 */
+        .preview-pane li {
+            margin-bottom: 0.3em;
+        }
+        /* 段落間距 */
+        .preview-pane p {
+            margin-bottom: 1.2em;
+        }
+        /* 引用樣式 */
+        .preview-pane blockquote {
+            border-left: 4px solid var(--accent);
+            margin: 1em 0;
+            padding: 0.5em 1em;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #bbb;
+        }
+        /* 程式碼區塊 */
+        .preview-pane pre { 
+            background: #1e1e1e; 
+            padding: 15px; 
+            border-radius: 8px; 
+            overflow-x: auto; 
+            margin-bottom: 1.5em;
+            border: 1px solid #333;
+        }
+        .preview-pane code { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
+        .preview-pane pre code { background: transparent; padding: 0; }
+        
+        /* View Modes */
         .mode-edit .editor-pane { width: 100%; border-right: none; } .mode-edit .preview-pane { display: none; }
         .mode-preview .editor-pane { display: none; } .mode-preview .preview-pane { width: 100%; }
+
+        /* Vim Mode Bar */
+        #vim-bar {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40px;
+            background-color: var(--vim-bg); color: white;
+            display: none; align-items: center; padding: 0 10px; gap: 10px; z-index: 50;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3); font-size: 13px;
+        }
+        #vim-bar.active { display: flex; }
+        .vim-label { font-weight: bold; font-family: monospace; padding-right: 10px; border-right: 1px solid rgba(255,255,255,0.3); }
+        .vim-input-cmd { flex: 1; border: none; font-size: 14px; font-family: monospace; padding: 4px 8px; background: rgba(0,0,0,0.2); color: white; border-radius: 4px; }
+        .vim-btn { padding: 4px 10px; font-size: 12px; border-radius: 4px; border: none; background: rgba(255,255,255,0.2); color: white;}
+        .vim-btn:hover { background: rgba(255,255,255,0.3); }
+
+        /* Global Status Bar (Bottom) */
+        #editor-status-bar {
+            height: 25px; background: var(--accent); color: white; display: flex; align-items: center; justify-content: flex-end; padding: 0 15px; font-size: 11px; gap: 15px;
+        }
 
         /* Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; justify-content: center; align-items: center; }
@@ -125,6 +196,9 @@
         }
         .ai-switch-btn.active { background: var(--bg-light); color: white; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .ai-switch-btn.pro-active { color: #ffd700; } 
+        
+        .ai-select-container { margin-bottom: 15px; }
+        .ai-select { width: 100%; padding: 8px; font-size: 13px; background: var(--bg-darker); color: #ccc; border: 1px solid #555; border-radius: 8px; }
 
         .ai-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 15px; }
         .ai-tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; opacity: 0.6; }
@@ -171,22 +245,40 @@
             </div>
             <div class="toolbar-group">
                 <button class="primary" onclick="openAIModal()">AI 助手</button>
-                <button onclick="exportFile()">匯出 .txt</button>
+                <button onclick="toggleVimMode()" id="btn-vim">Vim Mode</button>
+                <button onclick="exportFile()">匯出</button>
             </div>
         </div>
+        
         <div class="main-container mode-split" id="main-container">
             <div class="editor-pane">
                 <div class="line-numbers" id="line-numbers">1</div>
                 <textarea id="markdown-input" spellcheck="false"></textarea>
+                
+                <div id="vim-bar">
+                    <span class="vim-label">NORMAL</span>
+                    <span style="opacity: 0.7;">:</span>
+                    <input type="text" id="vim-cmd-input" class="vim-input-cmd" placeholder="在此輸入指令或使用 AI 生成..." autocomplete="off">
+                    <button class="vim-btn" onclick="executeVimCommand()">執行 (Enter)</button>
+                    <button class="vim-btn" onclick="openAIModal()">AI 生成指令</button>
+                </div>
             </div>
             <div class="preview-pane" id="preview-output"></div>
+        </div>
+
+        <div id="editor-status-bar">
+            <span id="status-model">Model: Auto</span>
+            <span>|</span>
+            <span id="status-req">Req: 0</span>
+            <span>|</span>
+            <span id="status-tok">Tok: 0</span>
         </div>
     </div>
 
     <div id="ai-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <span>AI 助手</span>
+                <span id="ai-modal-title">AI 助手</span>
                 <button onclick="closeModal('ai-modal')" style="border:none; background:none; color:white;">✕</button>
             </div>
             <div class="modal-body">
@@ -196,27 +288,47 @@
 
                 <div class="ai-model-switch">
                     <button class="ai-switch-btn active" id="btn-instant" onclick="setAiModel('instant')">
-                        即時模式 (Flash 2.5) - 速度快
+                        即時模式 (Flash)
                     </button>
                     <button class="ai-switch-btn" id="btn-pro" onclick="setAiModel('pro')">
-                        專業模式 (Pro 2.5) - 邏輯強
+                        專業模式 (Pro)
                     </button>
                 </div>
-
-                <div class="ai-tabs">
-                    <div class="ai-tab active" id="tab-modify" onclick="switchAiTab('modify')">修改當前代碼</div>
-                    <div class="ai-tab" id="tab-generate" onclick="switchAiTab('generate')">生成新代碼</div>
+                <div class="ai-select-container">
+                    <label style="font-size:12px; color:#888; margin-bottom:5px; display:block;">指定其他模型 (選用)</label>
+                    <select id="extra-model-select" class="ai-select" onchange="handleExtraModelChange()">
+                        <option value="">-- 使用上方預設按鈕 --</option>
+                    </select>
                 </div>
 
-                <div id="panel-modify">
-                    <p style="font-size:13px; color:#aaa; margin-bottom:10px;">AI 將讀取編輯器內容並提供優化建議。</p>
-                    <button class="primary" onclick="callGemini('modify')" style="width:100%">開始分析</button>
+                <div id="ai-view-vim" style="display:none;">
+                    <div style="background:#007acc; color:white; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px;">
+                        <strong>Vim 模式已啟用</strong><br>
+                        請輸入您想對文件進行的批次修改，AI 將自動生成 Regex 指令並填入下方指令列。
+                    </div>
+                    <textarea id="vim-prompt" placeholder="例如：把所有的 'apple' 換成 'banana'，忽略大小寫..." 
+                        style="width:100%; height:80px; margin-bottom:10px;"></textarea>
+                    <button class="primary" onclick="callGemini('vim-regex')" style="width:100%">生成指令</button>
                 </div>
 
-                <div id="panel-generate" style="display:none;">
-                    <textarea id="ai-prompt" placeholder="請描述需求，例如：寫一個 Python 的快速排序演算法..." 
-                        style="width:100%; height:100px; margin-bottom:10px;"></textarea>
-                    <button class="primary" onclick="callGemini('generate')" style="width:100%">生成並插入</button>
+                <div id="ai-view-normal">
+                    <div class="ai-tabs">
+                        <div class="ai-tab active" id="tab-modify" onclick="switchAiTab('modify')">修改當前代碼</div>
+                        <div class="ai-tab" id="tab-generate" onclick="switchAiTab('generate')">生成新代碼</div>
+                    </div>
+
+                    <div id="panel-modify">
+                        <p style="font-size:13px; color:#aaa; margin-bottom:5px;">請輸入具體的修改指示 (選填)：</p>
+                        <textarea id="modify-instruction" placeholder="例如：幫我加上註解、修正縮排、改為繁體中文..." 
+                        style="width:100%; height:60px; margin-bottom:10px;"></textarea>
+                        <button class="primary" onclick="callGemini('modify')" style="width:100%">開始分析與修改</button>
+                    </div>
+
+                    <div id="panel-generate" style="display:none;">
+                        <textarea id="ai-prompt" placeholder="請描述需求，例如：寫一個 Python 的快速排序演算法..." 
+                            style="width:100%; height:100px; margin-bottom:10px;"></textarea>
+                        <button class="primary" onclick="callGemini('generate')" style="width:100%">生成並插入</button>
+                    </div>
                 </div>
 
                 <div class="loader" id="ai-loader">AI 正在思考中...</div>
@@ -247,19 +359,34 @@
     <script>
         // 資料與狀態
         let projects = JSON.parse(localStorage.getItem('md_projects_v3')) || [];
-        projects.forEach(p => { if(!p.tags) p.tags = []; }); // 資料遷移
+        projects.forEach(p => { if(!p.tags) p.tags = []; }); 
 
         let currentProjectId = null;
         let isManageMode = false;
         let selectedIds = new Set();
+        let isVimMode = false;
         
-        let aiModelType = 'instant'; // instant | pro
-        let aiFunctionType = 'modify'; // modify | generate
+        let aiModelType = 'instant';
+        let aiFunctionType = 'modify';
+        let customModel = ""; 
+
+        // Stats
+        let requestCount = 0;
+        let totalTokenCount = 0;
 
         const MODELS = {
             instant: "gemini-2.5-flash",
             pro: "gemini-2.5-pro"
         };
+        
+        const ALL_SUPPORTED_MODELS = [
+            "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", 
+            "gemini-2.0-flash-001", "gemini-2.0-flash-lite-001", "gemini-2.0-flash-lite", 
+            "gemini-2.0-flash-lite-preview-02-05", "gemini-2.0-flash-lite-preview", 
+            "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-pro-latest", 
+            "gemini-2.5-flash-lite", "gemini-2.5-flash-preview-09-2025", 
+            "gemini-2.5-flash-lite-preview-09-2025", "gemini-robotics-er-1.5-preview"
+        ];
 
         // 初始化
         marked.use({ gfm: true, breaks: true });
@@ -272,19 +399,29 @@
             const ta = document.getElementById('markdown-input');
             ta.addEventListener('input', () => { updatePreview(); updateLineNumbers(); saveCurrentProject(); });
             ta.addEventListener('scroll', () => { document.getElementById('line-numbers').scrollTop = ta.scrollTop; });
+
+            // Vim Enter key
+            document.getElementById('vim-cmd-input').addEventListener('keypress', (e) => { if(e.key==='Enter') executeVimCommand(); });
+
+            // Populate Model Dropdown
+            const sel = document.getElementById('extra-model-select');
+            ALL_SUPPORTED_MODELS.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.innerText = m;
+                sel.appendChild(opt);
+            });
+            updateStatsUI();
         };
 
         // --- 儀表板邏輯 ---
         function renderDashboard() {
             const container = document.getElementById('dashboard-container');
             container.innerHTML = '';
-
             const allTags = new Set();
             projects.forEach(p => p.tags.forEach(t => allTags.add(t)));
             const sortedTags = Array.from(allTags).sort();
             const untagged = projects.filter(p => p.tags.length === 0);
-
-            // 渲染分類
             sortedTags.forEach(tag => {
                 const group = projects.filter(p => p.tags.includes(tag));
                 if(group.length) renderSection(container, tag, group);
@@ -298,18 +435,14 @@
             const section = document.createElement('div');
             section.className = 'tag-section';
             section.innerHTML = `<div class="tag-section-title">${title}</div>`;
-            
             const grid = document.createElement('div');
             grid.className = 'project-grid';
-
             items.forEach(p => {
                 const card = document.createElement('div');
                 const isSelected = selectedIds.has(p.id);
                 card.className = `project-card ${isSelected ? 'selected' : ''}`;
                 card.onclick = () => handleCardClick(p.id);
-
                 const tagsHtml = p.tags.map(t => `<span class="mini-tag">${t}</span>`).join('');
-                
                 card.innerHTML = `
                     <div class="select-indicator"></div>
                     <div class="card-top">
@@ -319,8 +452,7 @@
                     <div class="card-bottom">
                         <div class="card-tags">${tagsHtml}</div>
                         <div class="project-date">${p.lastModified.split(' ')[0]}</div>
-                    </div>
-                `;
+                    </div>`;
                 grid.appendChild(card);
             });
             section.appendChild(grid);
@@ -331,7 +463,7 @@
             if (isManageMode) {
                 if (selectedIds.has(id)) selectedIds.delete(id);
                 else selectedIds.add(id);
-                renderDashboard(); // 重新渲染以更新選取樣式
+                renderDashboard(); 
                 document.getElementById('select-count').innerText = `已選取 ${selectedIds.size}`;
             } else {
                 openProject(id);
@@ -386,6 +518,11 @@
             document.getElementById('project-name-display').innerText = p.title;
             updatePreview();
             updateLineNumbers();
+            
+            // 重置 Vim 模式
+            isVimMode = false;
+            document.getElementById('vim-bar').classList.remove('active');
+            document.getElementById('btn-vim').style.color = 'inherit';
         }
 
         function goToDashboard() {
@@ -399,7 +536,6 @@
             if(!currentProjectId) return;
             const content = document.getElementById('markdown-input').value;
             const title = content.split('\n')[0].replace(/^#+\s*/, '').trim() || '未命名專案';
-            
             const p = projects.find(x => x.id === currentProjectId);
             if(p) {
                 p.content = content;
@@ -439,94 +575,71 @@
             a.click();
         }
 
-        // --- 標籤功能 ---
-        let tagTargetId = null; 
-        let isBatchTag = false;
-
-        function openTagModal(pid) {
-            tagTargetId = pid;
-            isBatchTag = false;
-            document.getElementById('tag-modal-title').innerText = "編輯標籤";
-            document.getElementById('batch-hint').style.display = 'none';
-            renderTagsInModal();
-            openModal('tag-modal');
+        // --- Vim Mode 邏輯 ---
+        function toggleVimMode() {
+            isVimMode = !isVimMode;
+            const bar = document.getElementById('vim-bar');
+            if (isVimMode) {
+                bar.classList.add('active');
+                document.getElementById('vim-cmd-input').focus();
+                document.getElementById('btn-vim').style.color = '#007acc';
+                document.getElementById('btn-vim').style.borderColor = '#007acc';
+            } else {
+                bar.classList.remove('active');
+                document.getElementById('btn-vim').style.color = 'inherit';
+                document.getElementById('btn-vim').style.borderColor = 'var(--border)';
+            }
         }
 
-        function openBatchTagModal() {
-            if(selectedIds.size === 0) return alert("請先選取專案");
-            isBatchTag = true;
-            document.getElementById('tag-modal-title').innerText = "批次編輯標籤";
-            document.getElementById('batch-hint').style.display = 'block';
-            renderTagsInModal();
-            openModal('tag-modal');
-        }
+        function executeVimCommand() {
+            const cmd = document.getElementById('vim-cmd-input').value.trim();
+            if (!cmd) return;
 
-        function renderTagsInModal() {
-            const container = document.getElementById('tag-list-container');
-            container.innerHTML = '';
+            // s/find/replace/flags
+            const match = cmd.match(/^s\/(.*?)\/(.*?)\/([gimsuy]*)$/);
             
-            let tagsToShow = new Set();
-
-            if(isBatchTag) {
-                selectedIds.forEach(id => {
-                    const p = projects.find(x => x.id === id);
-                    if(p && p.tags) p.tags.forEach(t => tagsToShow.add(t));
-                });
+            if (match) {
+                const pattern = match[1];
+                const replacement = match[2];
+                const flags = match[3];
+                try {
+                    const regex = new RegExp(pattern, flags);
+                    const editor = document.getElementById('markdown-input');
+                    editor.value = editor.value.replace(regex, replacement);
+                    saveCurrentProject();
+                    updatePreview();
+                    // Feedback
+                    document.getElementById('vim-cmd-input').style.backgroundColor = 'rgba(0, 128, 0, 0.3)';
+                    setTimeout(() => document.getElementById('vim-cmd-input').style.backgroundColor = 'rgba(0,0,0,0.2)', 500);
+                } catch (e) {
+                    alert("Regex Error: " + e.message);
+                }
             } else {
-                const p = projects.find(x => x.id === tagTargetId);
-                if(p && p.tags) p.tags.forEach(t => tagsToShow.add(t));
+                alert("指令格式錯誤。請使用: s/pattern/replacement/flags");
             }
-
-            tagsToShow.forEach(tag => {
-                const chip = document.createElement('div');
-                chip.className = 'tag-chip';
-                chip.innerHTML = `${tag} <span class="tag-remove" onclick="removeTag('${tag}')">✕</span>`;
-                container.appendChild(chip);
-            });
-            
-            if(tagsToShow.size === 0) {
-                container.innerHTML = '<span style="color:#666; font-size:12px;">無標籤</span>';
-            }
-        }
-
-        function addTag() {
-            const val = document.getElementById('new-tag-input').value.trim();
-            if(!val) return;
-
-            if(isBatchTag) {
-                selectedIds.forEach(id => {
-                    const p = projects.find(x => x.id === id);
-                    if(p && !p.tags.includes(val)) p.tags.push(val);
-                });
-            } else {
-                const p = projects.find(x => x.id === tagTargetId);
-                if(p && !p.tags.includes(val)) p.tags.push(val);
-            }
-            saveProjects();
-            document.getElementById('new-tag-input').value = '';
-            renderTagsInModal();
-            if(currentProjectId) saveCurrentProject(); 
-        }
-
-        function removeTag(tag) {
-            if(isBatchTag) {
-                selectedIds.forEach(id => {
-                    const p = projects.find(x => x.id === id);
-                    if(p && p.tags) p.tags = p.tags.filter(t => t !== tag);
-                });
-            } else {
-                const p = projects.find(x => x.id === tagTargetId);
-                if(p) p.tags = p.tags.filter(t => t !== tag);
-            }
-            saveProjects();
-            renderTagsInModal();
         }
 
         // --- AI 邏輯 ---
         function setAiModel(type) {
             aiModelType = type;
+            customModel = ""; 
+            document.getElementById('extra-model-select').value = ""; 
+            updateStatsUI();
+            
             document.getElementById('btn-instant').className = `ai-switch-btn ${type==='instant'?'active':''}`;
             document.getElementById('btn-pro').className = `ai-switch-btn ${type==='pro'?'active pro-active':''}`;
+        }
+
+        function handleExtraModelChange() {
+            const val = document.getElementById('extra-model-select').value;
+            if (val) {
+                customModel = val;
+                document.getElementById('btn-instant').className = 'ai-switch-btn';
+                document.getElementById('btn-pro').className = 'ai-switch-btn';
+            } else {
+                setAiModel(aiModelType);
+            }
+            updateStatsUI();
         }
 
         function switchAiTab(type) {
@@ -538,30 +651,99 @@
             document.getElementById('ai-result-display').style.display = 'none';
         }
 
+        function updateStatsUI() {
+            let displayModel = customModel || (aiModelType === 'instant' ? "Flash 2.5" : "Pro 2.5");
+            document.getElementById('status-model').innerText = `Model: ${displayModel}`;
+            document.getElementById('status-req').innerText = `Req: ${requestCount}`;
+            document.getElementById('status-tok').innerText = `Tok: ${totalTokenCount}`;
+        }
+
+        // Modal Helpers
+        function openAIModal() { 
+            // 根據是否為 Vim 模式切換顯示介面
+            const vimView = document.getElementById('ai-view-vim');
+            const normalView = document.getElementById('ai-view-normal');
+            const title = document.getElementById('ai-modal-title');
+
+            if (isVimMode) {
+                vimView.style.display = 'block';
+                normalView.style.display = 'none';
+                title.innerText = "AI 助手 (Vim 模式)";
+                document.getElementById('vim-prompt').focus();
+            } else {
+                vimView.style.display = 'none';
+                normalView.style.display = 'block';
+                title.innerText = "AI 助手";
+            }
+
+            document.getElementById('ai-result-display').style.display = 'none';
+            document.getElementById('ai-result-display').innerText = '';
+            openModal('ai-modal'); 
+            updateStatsUI();
+        }
+
         async function callGemini(action) {
             const key = document.getElementById('api-key-input').value.trim();
             if(!key) return alert("請輸入 API Key");
             localStorage.setItem('google_api_key', key);
 
-            const modelName = aiModelType === 'instant' ? MODELS.instant : MODELS.pro;
+            let modelName = customModel;
+            if (!modelName) modelName = aiModelType === 'instant' ? MODELS.instant : MODELS.pro;
+
             const loader = document.getElementById('ai-loader');
             const resultDiv = document.getElementById('ai-result-display');
             
             let prompt = "";
-            if(action === 'modify') {
+            
+            // --- Vim Regex Generation ---
+            if(action === 'vim-regex') {
+                const userInstruction = document.getElementById('vim-prompt').value.trim();
+                if(!userInstruction) return alert("請輸入修改指令");
+                const snippet = document.getElementById('markdown-input').value.slice(0, 500);
+                
+                prompt = `
+                I have a text editor. Current text sample:
+                ---
+                ${snippet}
+                ---
+                User instruction: "${userInstruction}"
+                
+                Please generate a Javascript Regex substitution command in the format: s/pattern/replacement/flags
+                Rules:
+                1. Only return the command string (e.g., s/foo/bar/g).
+                2. Do not include markdown code blocks.
+                3. Use 'g' flag for global replacement unless specified otherwise.
+                `;
+            } 
+            // --- Modify Code ---
+            else if(action === 'modify') {
                 const content = document.getElementById('markdown-input').value;
+                const instruction = document.getElementById('modify-instruction').value.trim();
                 if(!content) return alert("內容為空");
-                prompt = `請優化以下程式碼/Markdown，修正錯誤並改進。直接給出結果，不要廢話。內容：\n${content}`;
-            } else {
+                
+                let instructionText = instruction ? `Specific Instruction: ${instruction}` : "Instruction: Optimize and fix errors.";
+                
+                prompt = `You are a coding assistant. 
+${instructionText}
+
+Original Content:
+${content}
+
+Output Rule:
+1. Provide the FULL updated content directly.
+2. NO markdown code blocks (no \`\`\`) unless the content itself contains them.
+3. NO conversational filler.`;
+            } 
+            // --- Generate Code ---
+            else {
                 const userPrompt = document.getElementById('ai-prompt').value.trim();
                 if(!userPrompt) return alert("請輸入提示詞");
                 
                 prompt = `你是一個 Markdown 編輯器助手。請根據以下需求生成內容插入到編輯器中。
 規則：
-1. 預設請直接輸出 Markdown 語法（例如 # 標題, - 列表），**不要**將整個回答用 \`\`\` 包起來。
-2. 只有在使用者要求生成特定程式碼（如 Python, R, HTML）時，才使用 \`\`\` 程式碼區塊包覆該程式碼片段。
+1. 預設請直接輸出 Markdown 語法，**不要**將整個回答用 \`\`\` 包起來。
+2. 只有在使用者要求生成特定程式碼（如 Python）時，才使用 \`\`\`。
 3. 直接給出內容，不要有任何開場白或結尾語。
-
 需求：${userPrompt}`;
             }
 
@@ -578,20 +760,43 @@
                 loader.style.display = 'none';
                 
                 if(data.error) throw new Error(data.error.message);
-                const text = data.candidates[0].content.parts[0].text;
+                
+                requestCount++;
+                if (data.usageMetadata && data.usageMetadata.totalTokenCount) {
+                    totalTokenCount += data.usageMetadata.totalTokenCount;
+                }
+                updateStatsUI();
 
+                let text = data.candidates[0].content.parts[0].text;
+
+                // --- Handle Vim Regex Response ---
+                if(action === 'vim-regex') {
+                    text = text.replace(/```/g, '').trim(); // clean code blocks
+                    document.getElementById('vim-cmd-input').value = text;
+                    closeModal('ai-modal');
+                    // Optional: Highlight the bar to show update
+                    const bar = document.getElementById('vim-bar');
+                    bar.style.backgroundColor = '#005a9e';
+                    setTimeout(() => bar.style.backgroundColor = 'var(--vim-bg)', 500);
+                    return; 
+                }
+
+                // --- Handle Modify/Generate ---
                 if(action === 'generate') {
                     const editor = document.getElementById('markdown-input');
                     const start = editor.selectionStart;
                     editor.value = editor.value.substring(0, start) + "\n" + text + "\n" + editor.value.substring(editor.selectionEnd);
                     resultDiv.innerText = "已插入代碼至編輯器。";
-                    resultDiv.style.display = 'block';
-                    saveCurrentProject();
-                    updatePreview();
-                } else {
-                    resultDiv.innerText = text;
-                    resultDiv.style.display = 'block';
+                } else if (action === 'modify') {
+                    // Replace entire content
+                    document.getElementById('markdown-input').value = text;
+                    resultDiv.innerText = "內容已更新。";
                 }
+
+                resultDiv.style.display = 'block';
+                saveCurrentProject();
+                updatePreview();
+
             } catch(e) {
                 loader.style.display = 'none';
                 resultDiv.innerText = "Error: " + e.message;
@@ -599,14 +804,75 @@
             }
         }
 
-        // Modal Helpers
-        function openAIModal() { 
-            // 清空輸入與結果
-            document.getElementById('ai-prompt').value = '';
-            document.getElementById('ai-result-display').style.display = 'none';
-            document.getElementById('ai-result-display').innerText = '';
-            openModal('ai-modal'); 
+        // --- Tag Modal Helpers (省略，保持不變) ---
+        function openTagModal(pid) {
+            tagTargetId = pid;
+            isBatchTag = false;
+            document.getElementById('tag-modal-title').innerText = "編輯標籤";
+            document.getElementById('batch-hint').style.display = 'none';
+            renderTagsInModal();
+            openModal('tag-modal');
         }
+        function openBatchTagModal() {
+            if(selectedIds.size === 0) return alert("請先選取專案");
+            isBatchTag = true;
+            document.getElementById('tag-modal-title').innerText = "批次編輯標籤";
+            document.getElementById('batch-hint').style.display = 'block';
+            renderTagsInModal();
+            openModal('tag-modal');
+        }
+        function renderTagsInModal() {
+            const container = document.getElementById('tag-list-container');
+            container.innerHTML = '';
+            let tagsToShow = new Set();
+            if(isBatchTag) {
+                selectedIds.forEach(id => {
+                    const p = projects.find(x => x.id === id);
+                    if(p && p.tags) p.tags.forEach(t => tagsToShow.add(t));
+                });
+            } else {
+                const p = projects.find(x => x.id === tagTargetId);
+                if(p && p.tags) p.tags.forEach(t => tagsToShow.add(t));
+            }
+            tagsToShow.forEach(tag => {
+                const chip = document.createElement('div');
+                chip.className = 'tag-chip';
+                chip.innerHTML = `${tag} <span class="tag-remove" onclick="removeTag('${tag}')">✕</span>`;
+                container.appendChild(chip);
+            });
+            if(tagsToShow.size === 0) container.innerHTML = '<span style="color:#666; font-size:12px;">無標籤</span>';
+        }
+        function addTag() {
+            const val = document.getElementById('new-tag-input').value.trim();
+            if(!val) return;
+            if(isBatchTag) {
+                selectedIds.forEach(id => {
+                    const p = projects.find(x => x.id === id);
+                    if(p && !p.tags.includes(val)) p.tags.push(val);
+                });
+            } else {
+                const p = projects.find(x => x.id === tagTargetId);
+                if(p && !p.tags.includes(val)) p.tags.push(val);
+            }
+            saveProjects();
+            document.getElementById('new-tag-input').value = '';
+            renderTagsInModal();
+            if(currentProjectId) saveCurrentProject(); 
+        }
+        function removeTag(tag) {
+            if(isBatchTag) {
+                selectedIds.forEach(id => {
+                    const p = projects.find(x => x.id === id);
+                    if(p && p.tags) p.tags = p.tags.filter(t => t !== tag);
+                });
+            } else {
+                const p = projects.find(x => x.id === tagTargetId);
+                if(p) p.tags = p.tags.filter(t => t !== tag);
+            }
+            saveProjects();
+            renderTagsInModal();
+        }
+
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { 
             document.getElementById(id).style.display = 'none'; 
