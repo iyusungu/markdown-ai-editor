@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor Pro (Rounded)</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-darker: #181818;
+            --bg-light: #252526;
+            --text-main: #d4d4d4;
+            --accent: #0e639c;
+            --accent-hover: #1177bb;
+            --danger: #c93c37;
+            --border: #3e3e42;
+            --hover: #2a2d2e;
+            --selected-bg: #094771;
+            --tag-bg: #3e3e42;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* 按鈕樣式：圓滑化修改 (border-radius: 20px) */
+        button { 
+            background-color: var(--bg-light); 
+            color: var(--text-main); 
+            border: 1px solid var(--border); 
+            padding: 6px 16px; /* 增加一點 padding 讓圓角更好看 */
+            cursor: pointer; 
+            border-radius: 20px; /* 圓角設定 */
+            transition: 0.2s; 
+            font-size: 13px;
+        }
+        button:hover { background-color: var(--hover); }
+        button.primary { background-color: var(--accent); border-color: var(--accent); color: white; }
+        button.primary:hover { background-color: var(--accent-hover); }
+        button.danger { background-color: var(--danger); border-color: var(--danger); color: white; }
+        
+        /* 輸入框也稍微圓角化，保持風格一致 */
+        input, textarea { 
+            background-color: var(--bg-darker); 
+            border: 1px solid var(--border); 
+            color: var(--text-main); 
+            padding: 10px; 
+            outline: none; 
+            border-radius: 12px;
+        }
+        
+        /* Dashboard */
+        #dashboard-view { padding: 40px; height: 100%; overflow-y: auto; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        
+        .tag-section { margin-bottom: 40px; }
+        .tag-section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: var(--accent); border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+
+        .project-card {
+            background-color: var(--bg-light); border: 1px solid var(--border); border-radius: 12px; /* 卡片圓角 */
+            height: 160px; padding: 15px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative;
+        }
+        .project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .project-card.selected { background-color: var(--selected-bg); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+
+        .card-top { flex: 1; overflow: hidden; }
+        .project-title { font-weight: bold; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .project-snippet { font-size: 0.85em; color: #888; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+        .card-bottom { margin-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .card-tags { display: flex; gap: 4px; overflow: hidden; }
+        .mini-tag { font-size: 10px; background: var(--tag-bg); padding: 2px 6px; border-radius: 8px; /* 標籤圓角 */ }
+        
+        /* 選取狀態下的 Checkbox */
+        .select-indicator {
+            position: absolute; top: 10px; right: 10px; width: 22px; height: 22px;
+            background: var(--bg-darker); border: 1px solid var(--border); border-radius: 50%;
+            display: none; align-items: center; justify-content: center;
+        }
+        .mode-manage .select-indicator { display: flex; }
+        .project-card.selected .select-indicator { background: var(--accent); border-color: var(--accent); color: white; }
+        .project-card.selected .select-indicator::after { content: '✓'; font-size: 12px; }
+
+        /* Editor */
+        #editor-view { display: none; flex-direction: column; height: 100%; }
+        .toolbar { height: 50px; background: var(--bg-darker); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
+        .toolbar-group { display: flex; gap: 10px; align-items: center; }
+        
+        /* 視圖切換按鈕群組 */
+        .view-toggles { display: flex; gap: 5px; background: var(--bg-light); padding: 3px; border-radius: 20px; border: 1px solid var(--border); }
+        .view-toggles button { border: none; background: transparent; padding: 4px 12px; border-radius: 16px; font-size: 12px; }
+        .view-toggles button.active { background: var(--accent); color: white; }
+
+        .main-container { flex: 1; display: flex; overflow: hidden; }
+        .editor-pane { width: 50%; display: flex; border-right: 1px solid var(--border); background: var(--bg-dark); }
+        .line-numbers { width: 40px; background: var(--bg-dark); color: #666; text-align: right; padding: 10px 5px; font-family: monospace; border-right: 1px solid var(--border); overflow: hidden; }
+        
+        /* 編輯器輸入框去除圓角以貼合版面 */
+        textarea { flex: 1; background: var(--bg-dark); color: var(--text-main); border: none; resize: none; padding: 10px; font-family: 'Consolas', monospace; outline: none; overflow-y: scroll; border-radius: 0; }
+        .preview-pane { width: 50%; padding: 20px; overflow-y: auto; background: var(--bg-light); }
+        
+        /* Markdown Styles */
+        .preview-pane h1, .preview-pane h2 { border-bottom: 1px solid var(--border); padding-bottom: 5px; color: #fff; }
+        .preview-pane pre { background: #1e1e1e; padding: 10px; border-radius: 8px; overflow-x: auto; }
+        .preview-pane code { font-family: monospace; }
+        
+        .mode-edit .editor-pane { width: 100%; border-right: none; } .mode-edit .preview-pane { display: none; }
+        .mode-preview .editor-pane { display: none; } .mode-preview .preview-pane { width: 100%; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; justify-content: center; align-items: center; }
+        .modal-content { background: var(--bg-light); width: 600px; max-height: 85vh; border: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-radius: 16px; }
+        .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+        /* AI Controls */
+        .ai-model-switch {
+            display: flex; background: var(--bg-darker); padding: 4px; border-radius: 20px; margin-bottom: 15px; border: 1px solid var(--border);
+        }
+        .ai-switch-btn {
+            flex: 1; border: none; background: transparent; color: #888; padding: 8px; font-size: 13px; border-radius: 16px;
+        }
+        .ai-switch-btn.active { background: var(--bg-light); color: white; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .ai-switch-btn.pro-active { color: #ffd700; } 
+
+        .ai-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 15px; }
+        .ai-tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; opacity: 0.6; }
+        .ai-tab.active { border-color: var(--accent); opacity: 1; color: white; }
+
+        .tag-chip { display: inline-flex; align-items: center; background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; margin: 2px; font-size: 12px; }
+        .tag-remove { margin-left: 6px; cursor: pointer; font-weight: bold; }
+        .tag-remove:hover { color: #ffcccc; }
+        
+        #ai-result-display { white-space: pre-wrap; background: var(--bg-darker); padding: 15px; margin-top: 15px; border: 1px solid var(--border); display: none; border-radius: 12px; }
+        .loader { display: none; color: var(--accent); margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="dashboard-view">
+        <div class="dashboard-header">
+            <h2>我的專案庫</h2>
+            <div id="default-actions">
+                <button onclick="toggleManageMode()">管理 / 刪除專案</button>
+                <button class="primary" onclick="createNewProject()">+ 新增專案</button>
+            </div>
+            <div id="manage-actions" style="display: none; align-items: center; gap: 10px;">
+                <span id="select-count" style="color: #aaa; font-size: 14px;">已選取 0</span>
+                <button onclick="openBatchTagModal()">批次標籤</button>
+                <button class="danger" onclick="deleteSelectedProjects()">刪除選取</button>
+                <button onclick="cancelManageMode()">完成</button>
+            </div>
+        </div>
+        <div id="dashboard-container"></div>
+    </div>
+
+    <div id="editor-view">
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button onclick="goToDashboard()">回首頁</button>
+                <button onclick="openTagModal(currentProjectId)">標籤</button>
+                <span id="project-name-display" style="font-weight: bold;"></span>
+            </div>
+            <div class="toolbar-group view-toggles">
+                <button onclick="setViewMode('edit')" id="btn-edit">編輯</button>
+                <button onclick="setViewMode('split')" id="btn-split" class="active">分割</button>
+                <button onclick="setViewMode('preview')" id="btn-preview">預覽</button>
+            </div>
+            <div class="toolbar-group">
+                <button class="primary" onclick="openAIModal()">AI 助手</button>
+                <button onclick="exportFile()">匯出 .txt</button>
+            </div>
+        </div>
+        <div class="main-container mode-split" id="main-container">
+            <div class="editor-pane">
+                <div class="line-numbers" id="line-numbers">1</div>
+                <textarea id="markdown-input" spellcheck="false"></textarea>
+            </div>
+            <div class="preview-pane" id="preview-output"></div>
+        </div>
+    </div>
+
+    <div id="ai-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>AI 助手</span>
+                <button onclick="closeModal('ai-modal')" style="border:none; background:none; color:white;">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <input type="password" id="api-key-input" placeholder="Google API Key (AIza...)" style="width: 100%;">
+                </div>
+
+                <div class="ai-model-switch">
+                    <button class="ai-switch-btn active" id="btn-instant" onclick="setAiModel('instant')">
+                        即時模式 (Flash 2.5) - 速度快
+                    </button>
+                    <button class="ai-switch-btn" id="btn-pro" onclick="setAiModel('pro')">
+                        專業模式 (Pro 2.5) - 邏輯強
+                    </button>
+                </div>
+
+                <div class="ai-tabs">
+                    <div class="ai-tab active" id="tab-modify" onclick="switchAiTab('modify')">修改當前代碼</div>
+                    <div class="ai-tab" id="tab-generate" onclick="switchAiTab('generate')">生成新代碼</div>
+                </div>
+
+                <div id="panel-modify">
+                    <p style="font-size:13px; color:#aaa; margin-bottom:10px;">AI 將讀取編輯器內容並提供優化建議。</p>
+                    <button class="primary" onclick="callGemini('modify')" style="width:100%">開始分析</button>
+                </div>
+
+                <div id="panel-generate" style="display:none;">
+                    <textarea id="ai-prompt" placeholder="請描述需求，例如：寫一個 Python 的快速排序演算法..." 
+                        style="width:100%; height:100px; margin-bottom:10px;"></textarea>
+                    <button class="primary" onclick="callGemini('generate')" style="width:100%">生成並插入</button>
+                </div>
+
+                <div class="loader" id="ai-loader">AI 正在思考中...</div>
+                <div id="ai-result-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tag-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 400px; height: auto;">
+            <div class="modal-header">
+                <span id="tag-modal-title">編輯標籤</span>
+                <button onclick="closeModal('tag-modal')" style="border:none; background:none; color:white;">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <input type="text" id="new-tag-input" placeholder="輸入標籤名稱..." style="flex:1;">
+                    <button onclick="addTag()">新增</button>
+                </div>
+                <div id="tag-list-container" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+                <p id="batch-hint" style="font-size:12px; color:#888; margin-top:10px; display:none;">
+                    提示：在此移除標籤會將其從所有選取的專案中刪除。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 資料與狀態
+        let projects = JSON.parse(localStorage.getItem('md_projects_v3')) || [];
+        projects.forEach(p => { if(!p.tags) p.tags = []; }); // 資料遷移
+
+        let currentProjectId = null;
+        let isManageMode = false;
+        let selectedIds = new Set();
+        
+        let aiModelType = 'instant'; // instant | pro
+        let aiFunctionType = 'modify'; // modify | generate
+
+        const MODELS = {
+            instant: "gemini-2.5-flash",
+            pro: "gemini-2.5-pro"
+        };
+
+        // 初始化
+        marked.use({ gfm: true, breaks: true });
+        
+        window.onload = function() {
+            renderDashboard();
+            const savedKey = localStorage.getItem('google_api_key');
+            if(savedKey) document.getElementById('api-key-input').value = savedKey;
+
+            const ta = document.getElementById('markdown-input');
+            ta.addEventListener('input', () => { updatePreview(); updateLineNumbers(); saveCurrentProject(); });
+            ta.addEventListener('scroll', () => { document.getElementById('line-numbers').scrollTop = ta.scrollTop; });
+        };
+
+        // --- 儀表板邏輯 ---
+        function renderDashboard() {
+            const container = document.getElementById('dashboard-container');
+            container.innerHTML = '';
+
+            const allTags = new Set();
+            projects.forEach(p => p.tags.forEach(t => allTags.add(t)));
+            const sortedTags = Array.from(allTags).sort();
+            const untagged = projects.filter(p => p.tags.length === 0);
+
+            // 渲染分類
+            sortedTags.forEach(tag => {
+                const group = projects.filter(p => p.tags.includes(tag));
+                if(group.length) renderSection(container, tag, group);
+            });
+            if(untagged.length || projects.length === 0) {
+                renderSection(container, '未分類', untagged);
+            }
+        }
+
+        function renderSection(container, title, items) {
+            const section = document.createElement('div');
+            section.className = 'tag-section';
+            section.innerHTML = `<div class="tag-section-title">${title}</div>`;
+            
+            const grid = document.createElement('div');
+            grid.className = 'project-grid';
+
+            items.forEach(p => {
+                const card = document.createElement('div');
+                const isSelected = selectedIds.has(p.id);
+                card.className = `project-card ${isSelected ? 'selected' : ''}`;
+                card.onclick = () => handleCardClick(p.id);
+
+                const tagsHtml = p.tags.map(t => `<span class="mini-tag">${t}</span>`).join('');
+                
+                card.innerHTML = `
+                    <div class="select-indicator"></div>
+                    <div class="card-top">
+                        <div class="project-title">${p.title}</div>
+                        <div class="project-snippet">${p.content.slice(0, 100)}</div>
+                    </div>
+                    <div class="card-bottom">
+                        <div class="card-tags">${tagsHtml}</div>
+                        <div class="project-date">${p.lastModified.split(' ')[0]}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            section.appendChild(grid);
+            container.appendChild(section);
+        }
+
+        function handleCardClick(id) {
+            if (isManageMode) {
+                if (selectedIds.has(id)) selectedIds.delete(id);
+                else selectedIds.add(id);
+                renderDashboard(); // 重新渲染以更新選取樣式
+                document.getElementById('select-count').innerText = `已選取 ${selectedIds.size}`;
+            } else {
+                openProject(id);
+            }
+        }
+
+        function toggleManageMode() {
+            isManageMode = true;
+            selectedIds.clear();
+            document.getElementById('dashboard-view').classList.add('mode-manage');
+            document.getElementById('default-actions').style.display = 'none';
+            document.getElementById('manage-actions').style.display = 'flex';
+            document.getElementById('select-count').innerText = "已選取 0";
+            renderDashboard();
+        }
+
+        function cancelManageMode() {
+            isManageMode = false;
+            selectedIds.clear();
+            document.getElementById('dashboard-view').classList.remove('mode-manage');
+            document.getElementById('default-actions').style.display = 'block';
+            document.getElementById('manage-actions').style.display = 'none';
+            renderDashboard();
+        }
+
+        function deleteSelectedProjects() {
+            if (selectedIds.size === 0) return alert("請先選取專案");
+            if (!confirm(`確定刪除 ${selectedIds.size} 個專案？`)) return;
+            projects = projects.filter(p => !selectedIds.has(p.id));
+            saveProjects();
+            cancelManageMode();
+        }
+
+        function createNewProject() {
+            const id = Date.now().toString();
+            projects.unshift({
+                id: id, title: '未命名專案', content: '', tags: [], lastModified: new Date().toLocaleString()
+            });
+            saveProjects();
+            openProject(id);
+        }
+
+        // --- 編輯器邏輯 ---
+        function openProject(id) {
+            currentProjectId = id;
+            const p = projects.find(x => x.id === id);
+            if(!p) return;
+            
+            document.getElementById('dashboard-view').style.display = 'none';
+            document.getElementById('editor-view').style.display = 'flex';
+            document.getElementById('markdown-input').value = p.content;
+            document.getElementById('project-name-display').innerText = p.title;
+            updatePreview();
+            updateLineNumbers();
+        }
+
+        function goToDashboard() {
+            document.getElementById('editor-view').style.display = 'none';
+            document.getElementById('dashboard-view').style.display = 'block';
+            currentProjectId = null;
+            renderDashboard();
+        }
+
+        function saveCurrentProject() {
+            if(!currentProjectId) return;
+            const content = document.getElementById('markdown-input').value;
+            const title = content.split('\n')[0].replace(/^#+\s*/, '').trim() || '未命名專案';
+            
+            const p = projects.find(x => x.id === currentProjectId);
+            if(p) {
+                p.content = content;
+                p.title = title;
+                p.lastModified = new Date().toLocaleString();
+                document.getElementById('project-name-display').innerText = title;
+                saveProjects();
+            }
+        }
+        
+        function saveProjects() { localStorage.setItem('md_projects_v3', JSON.stringify(projects)); }
+
+        function updatePreview() {
+            const raw = document.getElementById('markdown-input').value;
+            const prev = document.getElementById('preview-output');
+            prev.innerHTML = marked.parse(raw);
+            prev.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+        }
+
+        function updateLineNumbers() {
+            const lines = document.getElementById('markdown-input').value.split('\n').length;
+            document.getElementById('line-numbers').innerHTML = Array(lines).fill(0).map((_,i)=>`<div>${i+1}</div>`).join('');
+        }
+
+        function setViewMode(mode) {
+            document.getElementById('main-container').className = `main-container mode-${mode}`;
+            document.querySelectorAll('.view-toggles button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+        }
+
+        function exportFile() {
+            const txt = document.getElementById('markdown-input').value;
+            const name = document.getElementById('project-name-display').innerText;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([txt], {type: 'text/plain'}));
+            a.download = `${name}.txt`;
+            a.click();
+        }
+
+        // --- 標籤功能 ---
+        let tagTargetId = null; 
+        let isBatchTag = false;
+
+        function openTagModal(pid) {
+            tagTargetId = pid;
+            isBatchTag = false;
+            document.getElementById('tag-modal-title').innerText = "編輯標籤";
+            document.getElementById('batch-hint').style.display = 'none';
+            renderTagsInModal();
+            openModal('tag-modal');
+        }
+
+        function openBatchTagModal() {
+            if(selectedIds.size === 0) return alert("請先選取專案");
+            isBatchTag = true;
+            document.getElementById('tag-modal-title').innerText = "批次編輯標籤";
+            document.getElementById('batch-hint').style.display = 'block';
+            renderTagsInModal();
+            openModal('tag-modal');
+        }
+
+        function renderTagsInModal() {
+            const container = document.getElementById('tag-list-container');
+            container.innerHTML = '';
+            
+            let tagsToShow = new Set();
+
+            if(isBatchTag) {
+                selectedIds.forEach(id => {
+                    const p = projects.find(x => x.id === id);
+                    if(p && p.tags) p.tags.forEach(t => tagsToShow.add(t));
+                });
+            } else {
+                const p = projects.find(x => x.id === tagTargetId);
+                if(p && p.tags) p.tags.forEach(t => tagsToShow.add(t));
+            }
+
+            tagsToShow.forEach(tag => {
+                const chip = document.createElement('div');
+                chip.className = 'tag-chip';
+                chip.innerHTML = `${tag} <span class="tag-remove" onclick="removeTag('${tag}')">✕</span>`;
+                container.appendChild(chip);
+            });
+            
+            if(tagsToShow.size === 0) {
+                container.innerHTML = '<span style="color:#666; font-size:12px;">無標籤</span>';
+            }
+        }
+
+        function addTag() {
+            const val = document.getElementById('new-tag-input').value.trim();
+            if(!val) return;
+
+            if(isBatchTag) {
+                selectedIds.forEach(id => {
+                    const p = projects.find(x => x.id === id);
+                    if(p && !p.tags.includes(val)) p.tags.push(val);
+                });
+            } else {
+                const p = projects.find(x => x.id === tagTargetId);
+                if(p && !p.tags.includes(val)) p.tags.push(val);
+            }
+            saveProjects();
+            document.getElementById('new-tag-input').value = '';
+            renderTagsInModal();
+            if(currentProjectId) saveCurrentProject(); 
+        }
+
+        function removeTag(tag) {
+            if(isBatchTag) {
+                selectedIds.forEach(id => {
+                    const p = projects.find(x => x.id === id);
+                    if(p && p.tags) p.tags = p.tags.filter(t => t !== tag);
+                });
+            } else {
+                const p = projects.find(x => x.id === tagTargetId);
+                if(p) p.tags = p.tags.filter(t => t !== tag);
+            }
+            saveProjects();
+            renderTagsInModal();
+        }
+
+        // --- AI 邏輯 ---
+        function setAiModel(type) {
+            aiModelType = type;
+            document.getElementById('btn-instant').className = `ai-switch-btn ${type==='instant'?'active':''}`;
+            document.getElementById('btn-pro').className = `ai-switch-btn ${type==='pro'?'active pro-active':''}`;
+        }
+
+        function switchAiTab(type) {
+            aiFunctionType = type;
+            document.getElementById('tab-modify').className = `ai-tab ${type==='modify'?'active':''}`;
+            document.getElementById('tab-generate').className = `ai-tab ${type==='generate'?'active':''}`;
+            document.getElementById('panel-modify').style.display = type==='modify' ? 'block' : 'none';
+            document.getElementById('panel-generate').style.display = type==='generate' ? 'block' : 'none';
+            document.getElementById('ai-result-display').style.display = 'none';
+        }
+
+        async function callGemini(action) {
+            const key = document.getElementById('api-key-input').value.trim();
+            if(!key) return alert("請輸入 API Key");
+            localStorage.setItem('google_api_key', key);
+
+            const modelName = aiModelType === 'instant' ? MODELS.instant : MODELS.pro;
+            const loader = document.getElementById('ai-loader');
+            const resultDiv = document.getElementById('ai-result-display');
+            
+            let prompt = "";
+            if(action === 'modify') {
+                const content = document.getElementById('markdown-input').value;
+                if(!content) return alert("內容為空");
+                prompt = `請優化以下程式碼/Markdown，修正錯誤並改進。直接給出結果，不要廢話。內容：\n${content}`;
+            } else {
+                const userPrompt = document.getElementById('ai-prompt').value.trim();
+                if(!userPrompt) return alert("請輸入提示詞");
+                
+                prompt = `你是一個 Markdown 編輯器助手。請根據以下需求生成內容插入到編輯器中。
+規則：
+1. 預設請直接輸出 Markdown 語法（例如 # 標題, - 列表），**不要**將整個回答用 \`\`\` 包起來。
+2. 只有在使用者要求生成特定程式碼（如 Python, R, HTML）時，才使用 \`\`\` 程式碼區塊包覆該程式碼片段。
+3. 直接給出內容，不要有任何開場白或結尾語。
+
+需求：${userPrompt}`;
+            }
+
+            loader.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await resp.json();
+                loader.style.display = 'none';
+                
+                if(data.error) throw new Error(data.error.message);
+                const text = data.candidates[0].content.parts[0].text;
+
+                if(action === 'generate') {
+                    const editor = document.getElementById('markdown-input');
+                    const start = editor.selectionStart;
+                    editor.value = editor.value.substring(0, start) + "\n" + text + "\n" + editor.value.substring(editor.selectionEnd);
+                    resultDiv.innerText = "已插入代碼至編輯器。";
+                    resultDiv.style.display = 'block';
+                    saveCurrentProject();
+                    updatePreview();
+                } else {
+                    resultDiv.innerText = text;
+                    resultDiv.style.display = 'block';
+                }
+            } catch(e) {
+                loader.style.display = 'none';
+                resultDiv.innerText = "Error: " + e.message;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        // Modal Helpers
+        function openAIModal() { 
+            // 清空輸入與結果
+            document.getElementById('ai-prompt').value = '';
+            document.getElementById('ai-result-display').style.display = 'none';
+            document.getElementById('ai-result-display').innerText = '';
+            openModal('ai-modal'); 
+        }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if(isManageMode && id === 'tag-modal') renderDashboard(); 
+        }
+
+    </script>
+</body>
+</html>
